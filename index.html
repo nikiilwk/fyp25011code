@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FYP Faucet | Get Free Sepolia</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 350px; text-align: center; }
+        h2 { margin-top: 0; color: #1e293b; }
+        button { width: 100%; padding: 12px; margin-top: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; transition: 0.2s; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-success { background: #10b981; color: white; display: none; }
+        .btn-success:hover { background: #059669; }
+        input { padding: 12px; width: 85%; margin-top: 20px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; text-align: center; }
+        #status { margin-top: 15px; font-size: 14px; color: #64748b; min-height: 20px; font-weight: bold;}
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>🚰 Sepolia Faucet</h2>
+    <p style="color:#64748b; font-size: 14px;">Redeem free testnet ETH for your wallet. (Max 0.0001)</p>
+    
+    <button id="connectBtn" class="btn-primary" onclick="connectWallet()">Connect Wallet</button>
+
+    <div id="redeemSection" style="display: none;">
+        <input type="number" id="amount" placeholder="e.g. 0.0001" step="0.00001" max="0.0001">
+        <button class="btn-success" id="claimBtn" onclick="claimETH()">Claim Sepolia ETH</button>
+    </div>
+
+    <div id="status"></div>
+</div>
+
+<script>
+    const FAUCET_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138"; 
+    const SEPOLIA_CHAIN_ID = 11155111;
+    let provider, signer;
+    
+    const faucetAbi = ["function getSepolia(uint256 amountRequested) public"];
+
+    async function checkAndSwitchNetwork() {
+        const network = await provider.getNetwork();
+        if (network.chainId !== SEPOLIA_CHAIN_ID) {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0xaa36a7' }], 
+            });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+        }
+    }
+
+    async function connectWallet() {
+        if (!window.ethereum) return alert("Install MetaMask!");
+        try {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            signer = provider.getSigner();
+            
+            await checkAndSwitchNetwork();
+
+            document.getElementById("connectBtn").style.display = "none";
+            document.getElementById("redeemSection").style.display = "block";
+            document.querySelector(".btn-success").style.display = "block";
+            document.getElementById("status").style.color = "#10b981";
+            document.getElementById("status").innerText = "✅ Connected to Sepolia";
+        } catch (e) {
+            console.error(e);
+            document.getElementById("status").style.color = "red";
+            document.getElementById("status").innerText = "❌ Connection Failed.";
+        }
+    }
+
+    async function claimETH() {
+        const amtStr = document.getElementById("amount").value;
+        if (!amtStr || amtStr <= 0) {
+            alert("Please enter a valid amount.");
+            return;
+        }
+
+        // Frontend check before sending to blockchain
+        if (parseFloat(amtStr) > 0.0001) {
+            alert("Maximum claim amount is 0.0001 Sepolia!");
+            return;
+        }
+        
+        const statusDiv = document.getElementById("status");
+        statusDiv.style.color = "#2563eb";
+        
+        try {
+            const weiAmount = ethers.utils.parseEther(amtStr);
+            await checkAndSwitchNetwork();
+
+            const faucetContract = new ethers.Contract(FAUCET_ADDRESS, faucetAbi, signer);
+            
+            statusDiv.innerText = "Confirm transaction in MetaMask... (MetaMask will say 'Sending 0 ETH' - this is normal!)";
+            
+            const tx = await faucetContract.getSepolia(weiAmount);
+            statusDiv.innerText = "⏳ Transaction submitted. Waiting for blockchain confirmation...";
+            
+            await tx.wait();
+            
+            statusDiv.style.color = "#10b981";
+            statusDiv.innerText = "🎉 Success! " + amtStr + " Sepolia ETH sent to your wallet.";
+            
+        } catch (e) {
+            console.error(e);
+            statusDiv.style.color = "red";
+            
+            let errorMsg = "Transaction Failed.";
+            if(e.data && e.data.message) errorMsg = e.data.message;
+            
+            statusDiv.innerText = "❌ Failed: " + errorMsg;
+            alert("Transaction Failed! Is the Faucet empty? Or did you request more than 0.0001 ETH?\n\nDetails: " + errorMsg);
+        }
+    }
+</script>
+</body>
+</html>

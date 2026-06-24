@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Insights</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 700px; width: 100%; }
+        h1 { color: #3182ce; text-align: center; }
+        h3 { color: #2d3748; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-top: 30px; }
+        p { margin: 10px 0; color: #4a5568; }
+        .nav-button { background: #3182ce; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; display: block; margin: 30px auto 0; font-size: 16px; }
+        .nav-button:hover { background: #2c5282; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Data Insights</h1>
+        <div id="loading" style="text-align:center;">Analyzing data...</div>
+        <div id="result" style="display:none;"></div>
+        <button class="nav-button" onclick="window.location.href='search.html'">Back to Home</button>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const name = urlParams.get('name');
+        const apiKey = urlParams.get('key'); // Get the API key from the URL!
+        const API_URL = "http://127.0.0.1:8001"; // Point to your local server
+
+        if (name && apiKey) {
+            fetchData(name, apiKey);
+        } else {
+            document.getElementById('result').innerHTML = '<p style="color:red; font-weight:bold;">❌ Error: Unauthorized. Missing API Key.</p>';
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        async function fetchData(name, key) {
+            try {
+                // Fetch from the server AND pass the API Key in the headers!
+                const response = await fetch(`${API_URL}/get-credit-score-by-name?name=${encodeURIComponent(name)}`, {
+                    headers: { 'api-key': key }
+                });
+                const data = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                
+                if (response.ok) {
+                    displayInsights(data, name);
+                } else {
+                    document.getElementById('result').innerHTML = `<p style="color:red;">Error: ${data.detail}</p>`;
+                    document.getElementById('result').style.display = 'block';
+                }
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').innerHTML = `<p style="color:red;">Server Error. Is python server running?</p>`;
+                document.getElementById('result').style.display = 'block';
+            }
+        }
+
+        function displayInsights(data, name) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <h2 style="text-align:center; color:#555;">Analysis for ${name}</h2>
+                
+                <h3>💰 Financial Ability</h3>
+                <p><strong>Avg Spend per Trip:</strong> $${data.average_spend_per_trip}</p>
+                <p><strong>Spending Style:</strong> ${data.premium_vs_budget}</p>
+                <p><strong>Ancillary Spend:</strong> ${data.ancillary_spending}</p>
+
+                <h3>🏠 Lifestyle Stability</h3>
+                <p><strong>Annual Trips:</strong> ${data.trip_frequency}</p>
+                <p><strong>Purpose:</strong> ${data.travel_purpose_ratio}</p>
+                <p><strong>Consistency:</strong> ${data.destination_consistency}</p>
+
+                <h3>🤝 Willingness & Risk</h3>
+                <p><strong>Booking Lead Time:</strong> ${data.booking_lead_times}</p>
+                <p><strong>Insurance:</strong> ${data.insurance_purchase_rate}</p>
+                <p><strong>Loyalty Status:</strong> ${data.loyalty_tiers}</p>
+
+                <h3 style="color:#e53e3e;">🤖 Recommendation</h3>
+                <p style="font-size:1.2em; font-weight:bold;">${data.recommendation}</p>
+            `;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

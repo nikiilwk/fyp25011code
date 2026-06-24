@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alternative Credit & Health Oracle</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; max-width: 1000px; margin: 0 auto; color: #1a202c; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .back-btn { text-decoration: none; color: #4a5568; font-weight: bold; background: white; padding: 8px 16px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h2 { border-bottom: 2px solid #edf2f7; padding-bottom: 10px; font-size: 1.2rem; color: #2d3748; margin-top: 0; }
+        
+        .input-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9em; border-bottom: 1px dashed #edf2f7; padding-bottom: 5px; }
+        .input-row span { color: #718096; font-weight: bold; }
+        .input-row strong { color: #2b6cb0; }
+
+        .btn { background: #3182ce; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: 0.3s; }
+        .btn:hover { background: #2c5282; }
+        .btn-health { background: #38a169; }
+        .btn-health:hover { background: #2f855a; }
+        
+        /* Added for the disabled state before approval */
+        .btn:disabled { background: #cbd5e0; cursor: not-allowed; opacity: 0.6; }
+
+        .score-box { text-align: center; padding: 20px 0; }
+        .score-num { font-size: 4em; font-weight: 800; color: #2d3748; margin: 5px 0; }
+        .badge { background: #ebf8ff; color: #3182ce; padding: 5px 12px; border-radius: 20px; font-weight: bold; }
+        .badge-health { background: #f0fff4; color: #38a169; padding: 5px 12px; border-radius: 20px; font-weight: bold;}
+        
+        #status { text-align: center; margin-top: 10px; font-size: 0.9em; color: #718096; }
+        .transparency-box { margin-top: 20px; background: #2d3748; color: #e2e8f0; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.8em; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="search.html" class="back-btn">← New Search</a>
+        <div style="text-align: right;"><strong>Base44 Private Protocol</strong><br><span style="font-size:0.8em;color:#38a169;">🔒 Enterprise Private Chain</span></div>
+    </div>
+
+    <h1 id="userTitle">Data Buyer Dashboard</h1>
+
+    <div class="grid">
+        <div class="card">
+            <h2>📊 Base44 Data (Decrypted)</h2>
+            <div id="dataList">
+                <p style="color:#718096; text-align:center;">Fetching securely via API...</p>
+            </div>
+            
+            <button id="btnCredit" class="btn" onclick="runCreditOracle()">⚡ 1. Alternative Credit Score Algorithm (On-Chain ML)</button>
+            <button id="btnHealth" class="btn btn-health" onclick="runHealthOracle()">🏥 2. Health Index Algorithm (On-Chain ML)</button>
+            <div id="status">Ready.</div>
+        </div>
+
+        <div class="card">
+            <h2>🔗 On-Chain Verified Results</h2>
+            <div class="grid">
+                <div class="score-box">
+                    <div style="font-size: 0.9em; color: #718096; font-weight: bold;">CREDIT SCORE</div>
+                    <div class="score-num" id="creditScore">--</div>
+                    <div id="creditRating"></div>
+                </div>
+                <div class="score-box">
+                    <div style="font-size: 0.9em; color: #718096; font-weight: bold;">HEALTH INDEX</div>
+                    <div class="score-num" id="healthScore" style="color: #38a169;">--</div>
+                    <div id="healthStatus"></div>
+                </div>
+            </div>
+
+            <button class="btn" style="background: white; border: 2px solid #cbd5e0; color: #4a5568;" onclick="document.getElementById('transparency').style.display='block'">
+                👁️ View Smart Contract Formula (Transparency)
+            </button>
+            
+            <div id="transparency" class="transparency-box">
+                // PUBLIC ALGORITHM TRANSPARENCY<br>
+                // Health Algorithm Weights:<br>
+                if (creditAmount <= 13000) {<br>
+                &nbsp;&nbsp;if (age <= 31) { baseHealth = 45; } <br>
+                &nbsp;&nbsp;else { baseHealth = 65; }<br>
+                } else {<br>
+                &nbsp;&nbsp;if (age <= 28) { baseHealth = 85; } <br>
+                &nbsp;&nbsp;else { baseHealth = 98; }<br>
+                }
+            </div>
+            
+            <button class="btn" style="background: white; border: 2px solid #cbd5e0; color: #4a5568;" onclick="window.location.href=`insights.html?name=${encodeURIComponent(currentName)}&key=${encodeURIComponent(currentKey)}`">
+                📄 View Deterministic Insights
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = "0xB1eB27285109776F45DA2FaF51D3427d13A86b87"; 
+        const API_URL = "http://127.0.0.1:8001";
+        
+        const ABI = [
+            "function calculateAndStoreScore(uint256 age, uint256 creditAmount, uint256 duration, uint256 installment, uint256 residence) public",
+            "function calculateHealthInsight(uint256 age, uint256 tripsAnnual, uint256 creditAmount) public",
+            "function getScore(address user) public view returns (uint256, string memory, uint256)",
+            "function getHealth(address user) public view returns (uint256, string memory, uint256)"
+        ];
+
+        let provider, signer, contract, currentData, currentName, currentKey;
+
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentName = urlParams.get("name") || "Chow Ka Ho"; 
+            currentKey = urlParams.get("key") || "base44"; 
+            
+            document.getElementById("userTitle").innerText = `Overview: ${currentName}`;
+
+            // 🛑 NEW LOGIC: Intercept Chow Ka Ho for the Approval Demo
+            if (currentName.toLowerCase() === "chow ka ho") {
+                // Disable the ML buttons
+                document.getElementById("btnCredit").disabled = true;
+                document.getElementById("btnHealth").disabled = true;
+                
+                // Show the waiting room UI
+                document.getElementById("dataList").innerHTML = `
+                    <div style="text-align:center; padding: 15px; border: 1px dashed #cbd5e0; border-radius: 8px; background: #faf5ff;">
+                        <h3 style="color:#805ad5; margin-top:0;">🔒 Waiting for Data Owner</h3>
+                        <p style="color:#718096; font-size: 0.9em;">A smart contract request has been sent to <strong>${currentName}'s</strong> decentralized wallet. Waiting for them to approve the sale of their data...</p>
+                        <button class="btn" style="background: #805ad5; margin-top: 10px;" onclick="simulateApproval()">📱 Simulate: User Approves via Wallet</button>
+                    </div>
+                `;
+            } else {
+                // If it's anyone else, just fetch normally
+                fetchUserData(currentName, currentKey); 
+            }
+
+            if (window.ethereum) {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+            }
+        };
+
+        // 🟢 SIMULATE APPROVAL FUNCTION
+        function simulateApproval() {
+            // Show dramatic success message
+            document.getElementById("dataList").innerHTML = "<p style='color:#38a169; text-align:center; font-weight:bold;'>✅ Consent Received! Decrypting data...</p>";
+            
+            // Re-enable the ML buttons
+            document.getElementById("btnCredit").disabled = false;
+            document.getElementById("btnHealth").disabled = false;
+
+            // Wait 1 second for dramatic effect, then fetch the real Base44 data
+            setTimeout(() => {
+                fetchUserData(currentName, currentKey);
+            }, 1000);
+        }
+
+        // 🟢 LIVE MODE: Fetching securely from your Python Server API
+        async function fetchUserData(name, apiKey) {
+            try {
+                document.getElementById("dataList").innerHTML = "<p style='color:#718096; text-align:center;'>Fetching securely via API...</p>";
+                
+                const res = await fetch(`${API_URL}/get-user?name=${encodeURIComponent(name)}`, {
+                    headers: { 'api-key': apiKey }
+                });
+                
+                if (res.status === 401) {
+                    document.getElementById("dataList").innerHTML = "<p style='color:red; font-weight:bold;'>❌ Access Denied: Invalid Payment / API Key</p>";
+                    return;
+                }
+                
+                currentData = await res.json();
+                
+                if(currentData.status === "success") {
+                    document.getElementById("dataList").innerHTML = `
+                        <div class="input-row"><span>Mapped Age</span> <strong>${currentData.age} yrs</strong></div>
+                        <div class="input-row"><span>Mapped Credit (Spend)</span> <strong>$${currentData.creditAmount}</strong></div>
+                        <div class="input-row"><span>Duration Proxy</span> <strong>${currentData.duration} mo</strong></div>
+                        <div class="input-row"><span>Annual Trips</span> <strong>${currentData.tripsAnnual}</strong></div>
+                        <div class="input-row"><span>Insurance Rate</span> <strong>${currentData.insuranceRate}%</strong></div>
+                    `;
+                } else {
+                    document.getElementById("dataList").innerHTML = `<p style='color:red;'>User not found in dataset.</p>`;
+                }
+            } catch(e) { 
+                console.error("API Connection Error:", e);
+                document.getElementById("dataList").innerHTML = "<p style='color:red; text-align:center;'>Server Error.<br><span style='font-size:0.8em;'>Ensure 'python server.py' is running in your terminal!</span></p>"; 
+            }
+        }
+
+        async function runCreditOracle() {
+            try {
+                document.getElementById("status").innerText = "Confirm Credit TX in MetaMask...";
+                const tx = await contract.calculateAndStoreScore(currentData.age, currentData.creditAmount, currentData.duration, currentData.installment, currentData.residence);
+                await tx.wait();
+                document.getElementById("status").innerText = "✅ Credit Score Updated!";
+                readCreditScore();
+            } catch(e) { 
+                console.error("MetaMask Failed. Running Simulation Backup...");
+                document.getElementById("status").innerText = "Simulating On-Chain TX...";
+                setTimeout(() => {
+                    document.getElementById("status").innerText = "✅ Score Updated (Simulation Mode)";
+                    document.getElementById("creditScore").innerText = "685";
+                    document.getElementById("creditRating").innerHTML = `<span class="badge">Good</span>`;
+                }, 2000);
+            }
+        }
+
+        async function runHealthOracle() {
+            try {
+                document.getElementById("status").innerText = "Confirm Health TX in MetaMask...";
+                const tx = await contract.calculateHealthInsight(currentData.age, currentData.tripsAnnual, currentData.creditAmount);
+                await tx.wait();
+                document.getElementById("status").innerText = "✅ Health Insight Updated!";
+                readHealthScore();
+            } catch(e) { 
+                console.error("MetaMask Failed. Running Simulation Backup...");
+                document.getElementById("status").innerText = "Simulating On-Chain TX...";
+                setTimeout(() => {
+                    document.getElementById("status").innerText = "✅ Health Updated (Simulation Mode)";
+                    document.getElementById("healthScore").innerText = "98/100";
+                    document.getElementById("healthStatus").innerHTML = `<span class="badge badge-health">Optimal</span>`;
+                }, 2000);
+            }
+        }
+
+        async function readCreditScore() {
+            const addr = await signer.getAddress();
+            try {
+                const scoreData = await contract.getScore(addr);
+                if(scoreData[0].toString() !== "0") {
+                    document.getElementById("creditScore").innerText = scoreData[0];
+                    document.getElementById("creditRating").innerHTML = `<span class="badge">${scoreData[1]}</span>`;
+                }
+            } catch(e) { console.error("Error reading credit score:", e); }
+        }
+
+        async function readHealthScore() {
+            const addr = await signer.getAddress();
+            try {
+                const healthData = await contract.getHealth(addr);
+                if(healthData[0].toString() !== "0") {
+                    document.getElementById("healthScore").innerText = healthData[0] + "/100";
+                    document.getElementById("healthStatus").innerHTML = `<span class="badge badge-health">${healthData[1]}</span>`;
+                }
+            } catch(e) { console.error("Error reading health score:", e); }
+        }
+    </script>
+</body>
+</html>
